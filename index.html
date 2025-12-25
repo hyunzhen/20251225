@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>공성전 가독성 강화 UI 프로토타입</title>
+  <style>
+    :root{
+      --ui-green:#00ff91;
+      --ui-blue:#3a7bff;
+      --ui-red:#ff3b3b;
+      --ui-yellow:#ffd24a;
+      --txt:#eaf3ef;
+      --muted:#b7c6bf;
+      --shadow: 0 12px 28px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:#0b0f0d;
+      color:var(--txt);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Noto Sans KR, Arial, sans-serif;
+    }
+
+    .page{
+      max-width: 1440px;
+      margin: 18px auto 28px;
+      padding: 0 14px;
+    }
+
+    .stage-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin: 6px 2px 10px;
+      color:#dff3ea;
+      opacity:.95;
+    }
+    .stage-title .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      background: rgba(0,168,107,.12);
+      border:1px solid rgba(0,168,107,.28);
+      border-radius: 999px;
+      font-size: 13px;
+      letter-spacing:.2px;
+    }
+
+    /* ====== Game frame ====== */
+    .game-frame{
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9; /* 1920x1080 */
+      border-radius: 16px;
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      background:#000;
+    }
+    .bg{ position:absolute; inset:0; }
+    .bg img{
+      width:100%; height:100%;
+      object-fit: cover;
+      display:block;
+      filter: saturate(.95) contrast(1.03);
+      transform: scale(1.02);
+    }
+    .vignette{
+      position:absolute; inset:0;
+      background:
+        radial-gradient(1200px 700px at 20% 20%, rgba(0,0,0,.22), rgba(0,0,0,.52) 70%),
+        linear-gradient(to bottom, rgba(0,0,0,.25), rgba(0,0,0,.35));
+      pointer-events:none;
+    }
+
+    /* ====== HUD ====== */
+    .hud{
+      position:absolute; inset:0;
+      pointer-events:none;
+    }
+
+    /* Left widget: minimap + one panel */
+    .left-widget{
+      position:absolute;
+      left: 22px;
+      top: 22px;
+      width: 260px;
+      display:flex;
+      flex-direction:column;
+      gap: 10px;
+      pointer-events:none;
+    }
+
+    .minimap{
+      position:relative;
+      width: 240px;
+      height: 240px;
+      border-radius: 999px;
+
+      /* 동력 장치 가동 상태 링(기본 #7293FF, 파괴 시 #1A0000) */
+      border: 7px solid #7293FF;
+
+      box-shadow: 0 12px 24px rgba(0,0,0,.40);
+      overflow:hidden;
+      background: rgba(10,20,16,.55);
+    }
+    .minimap img{
+      width:100%; height:100%;
+      object-fit: cover;
+      transform: scale(1.02);
+      filter: contrast(1.02) saturate(1.02);
+    }
+
+    /* Gate status dots (3 circles) */
+    .gate-dot{
+      position:absolute;
+      width: 16px; height: 16px;
+      border-radius: 999px;
+      background: rgba(0,255,145,.95); /* 정상 */
+      box-shadow: 0 0 0 3px rgba(0,0,0,.45);
+      opacity:.95;
+    }
+    /* left = 좌측 성문, right = 우측 성문, bottom = 중앙 성문 */
+    .dot-left  { left: 12px; top: 50%; transform: translateY(-50%); }
+    .dot-right { right: 12px; top: 50%; transform: translateY(-50%); }
+    .dot-center{ left: 50%; bottom: 12px; transform: translateX(-50%); }
+
+    /* Unified panel under minimap */
+    .panel{
+      border-radius: 12px;
+      overflow:hidden;
+      background: rgba(0,0,0,.35);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 12px 24px rgba(0,0,0,.35);
+    }
+
+    /* War gauge row (전세 급변 감지: gauge only) */
+    .war-row{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 10px 8px;
+      background: rgba(0,0,0,.25);
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .ico{
+      width: 34px; height: 34px;
+      border-radius: 10px;
+      display:grid; place-items:center;
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.10);
+      font-size: 18px;
+      flex:0 0 auto;
+    }
+    .war-gauge{
+      height: 14px;
+      flex:1;
+      border-radius: 999px;
+      overflow:hidden;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.12);
+      display:flex;
+    }
+    .g-att{ background: rgba(255,59,59,.85); width:50%;}
+    .g-def{ background: rgba(58,123,255,.85); width:50%;}
+
+    /* Timer row */
+    .timer-row{
+      padding: 8px 10px;
+      background: rgba(0,0,0,.18);
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      text-align:center;
+      font-weight: 900;
+      color: var(--ui-yellow);
+      text-shadow: 0 2px 8px rgba(0,0,0,.5);
+      letter-spacing:.3px;
+    }
+
+    /* Steps list */
+    .steps{
+      padding: 8px 10px 10px;
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+    }
+    .stage-item{
+      width: 100%;
+      padding: 9px 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing:.1px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.12);  /* 미완료: 밝게 */
+      color: rgba(255,255,255,.92);
+    }
+    /* 완료된 단계: 어둡게 */
+    .stage-item.completed{
+      background: rgba(0,0,0,.28);
+      color: rgba(255,255,255,.75);
+      border-color: rgba(255,255,255,.10);
+    }
+
+    /* ====== Narration ====== */
+    .narration{
+      position:absolute;
+      left: 50%;
+      top: 34px;
+      transform: translateX(-50%);
+      width: min(820px, 78%);
+      pointer-events:none;
+      opacity:0;
+    }
+    .narration .banner{
+      background: linear-gradient(90deg, rgba(120,20,20,.85), rgba(160,40,40,.85), rgba(120,20,20,.85));
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: 0 16px 34px rgba(0,0,0,.45);
+      text-align:center;
+    }
+    .narration .main{
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing:.2px;
+      text-shadow: 0 3px 10px rgba(0,0,0,.45);
+    }
+    .narration .sub{
+      margin-top: 6px;
+      font-size: 13px;
+      color: rgba(255,255,255,.88);
+      line-height: 1.35;
+      white-space: pre-line;
+    }
+    .narration.show{
+      animation: fadeInOut 3.2s ease-in-out forwards;
+    }
+    @keyframes fadeInOut{
+      0%{opacity:0; transform:translateX(-50%) translateY(-6px);}
+      12%{opacity:1; transform:translateX(-50%) translateY(0);}
+      78%{opacity:1;}
+      100%{opacity:0; transform:translateX(-50%) translateY(-6px);}
+    }
+
+    /* ====== Meta panel ====== */
+    .meta-panel{
+      margin-top: 14px;
+      border-radius: 16px;
+      background: linear-gradient(180deg, rgba(19,34,28,.92), rgba(15,26,22,.92));
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .meta-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: rgba(0,0,0,.18);
+    }
+    .meta-head .title{
+      font-weight: 900;
+      letter-spacing:.2px;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+    .meta-head .desc{
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .meta-grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 12px;
+      padding: 12px;
+    }
+    @media (max-width: 980px){
+      .meta-grid{ grid-template-columns: 1fr; }
+    }
+    .card{
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      padding: 12px;
+    }
+    .card h3{
+      margin:0 0 10px;
+      font-size: 14px;
+      letter-spacing:.2px;
+      color: #e9fff6;
+      display:flex;
+      align-items:center;
+      gap: 8px;
+    }
+    .muted{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 6px;
+    }
+    .checklist{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 980px){
+      .checklist{ grid-template-columns: 1fr; }
+    }
+    label.chk{
+      display:flex;
+      align-items:flex-start;
+      gap: 10px;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      cursor:pointer;
+      user-select:none;
+    }
+    label.chk input{
+      margin-top: 2px;
+      transform: scale(1.15);
+      accent-color: #00a86b;
+    }
+    label.chk.disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      filter: grayscale(.3);
+    }
+    .row{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content:flex-end;
+    }
+    .btn{
+      pointer-events:auto;
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.22);
+      color: var(--txt);
+      cursor:pointer;
+      font-weight: 800;
+      letter-spacing:.15px;
+    }
+    .btn:hover{ filter: brightness(1.06); }
+    .btn:active{ transform: translateY(1px); }
+    .btn.danger{
+      border-color: rgba(255,59,59,.25);
+      background: rgba(255,59,59,.12);
+    }
+    .form{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .field{
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+    }
+    .field label{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .field input{
+      width:100%;
+      padding: 10px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      color: var(--txt);
+      outline:none;
+    }
+    .field input:focus{
+      border-color: rgba(0,255,145,.35);
+      box-shadow: 0 0 0 3px rgba(0,255,145,.10);
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="stage-title">
+      <div class="badge">👁️ 공성전 관람 UI 프로토타입</div>
+    </div>
+
+    <div class="game-frame">
+      <div class="bg">
+        <img src="https://raw.githubusercontent.com/hyunzhen/20251225/refs/heads/main/2025122501.png" alt="battle-bg">
+      </div>
+      <div class="vignette"></div>
+
+      <div class="hud">
+        <!-- Left widget -->
+        <div class="left-widget">
+          <div class="minimap" aria-label="minimap">
+            <img src="https://raw.githubusercontent.com/hyunzhen/20251225/refs/heads/main/2025122502.png" alt="minimap">
+
+            <!-- 성문 상태: 미니맵 3개 원 -->
+            <div class="gate-dot dot-left" id="dotGateL" title="좌측 성문"></div>
+            <div class="gate-dot dot-right" id="dotGateR" title="우측 성문"></div>
+            <div class="gate-dot dot-center" id="dotGateC" title="중앙 성문"></div>
+          </div>
+
+          <!-- 패널: 전세 게이지 + 타이머 + 진행단계 -->
+          <div class="panel">
+            <div class="war-row">
+              <div class="ico" title="공성">⚔️</div>
+              <div class="war-gauge" aria-label="war-gauge">
+                <div class="g-att" id="gAtt"></div>
+                <div class="g-def" id="gDef"></div>
+              </div>
+              <div class="ico" title="수성">🛡️</div>
+            </div>
+
+            <div class="timer-row" id="timerText">00분 00초 남음</div>
+
+            <div class="steps">
+              <div class="stage-item" id="uiStageGate">성문 진입</div>
+              <div class="stage-item" id="uiStagePower">동력 장치 파괴</div>
+              <div class="stage-item" id="uiStageRelic">성물 점령</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Narration -->
+        <div class="narration" id="narration">
+          <div class="banner">
+            <div class="main" id="narMain">공성전이 시작되었습니다.</div>
+            <div class="sub" id="narSub"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Meta control panel -->
+    <div class="meta-panel">
+      <div class="meta-head">
+        <div class="title">🧩 메타 컨트롤 패널</div>
+        <div class="desc">체크박스는 한 번 체크되면 “전체 리셋”으로만 해제됩니다.</div>
+      </div>
+
+      <div class="meta-grid">
+        <div class="card">
+          <h3>✅ 진행 단계</h3>
+
+          <div class="checklist">
+            <label class="chk">
+              <input type="checkbox" id="gateL">
+              <div><b>좌측 성문 파괴</b><div class="muted">미니맵 좌측 원이 빨간색으로 변경</div></div>
+            </label>
+            <label class="chk">
+              <input type="checkbox" id="gateC">
+              <div><b>중앙 성문 파괴</b><div class="muted">미니맵 하단 원이 빨간색으로 변경</div></div>
+            </label>
+            <label class="chk">
+              <input type="checkbox" id="gateR">
+              <div><b>우측 성문 파괴</b><div class="muted">미니맵 우측 원이 빨간색으로 변경</div></div>
+            </label>
+
+            <label class="chk disabled" id="lblPower50">
+              <input type="checkbox" id="power50" disabled>
+              <div><b>동력 장치 50% 파괴</b><div class="muted">성문이 하나라도 파괴되어야 체크 가능</div></div>
+            </label>
+
+            <label class="chk disabled" id="lblPower">
+              <input type="checkbox" id="power" disabled>
+              <div><b>동력 장치 파괴</b><div class="muted">동력 장치 50% 파괴가 체크되어야 체크 가능</div></div>
+            </label>
+
+            <label class="chk disabled" id="lblRelic">
+              <input type="checkbox" id="relic" disabled>
+              <div><b>성물 파괴</b><div class="muted">동력 장치 파괴가 체크되어야 체크 가능</div></div>
+            </label>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <button class="btn danger" id="btnReset" type="button">🔄 전체 리셋</button>
+          </div>
+
+          <div class="muted">
+            ※ “부가 이벤트 내용(마지막 일격/보호막 해제)”은 <b>성문 파괴가 처음 발생했을 때 1회만</b> 출력됩니다.
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>📈 전세 급변 감지(게이지)</h3>
+
+          <div class="form">
+            <div class="field">
+              <label>수성측 인원</label>
+              <input type="number" id="defAlive" value="50" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>공성측 인원</label>
+              <input type="number" id="attAlive" value="50" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>수성측 10초 내 사망 인원</label>
+              <input type="number" id="defDead" value="0" min="0" step="1">
+            </div>
+            <div class="field">
+              <label>공성측 10초 내 사망 인원</label>
+              <input type="number" id="attDead" value="0" min="0" step="1">
+            </div>
+          </div>
+
+          <div class="muted">
+            유효 전력 = 인원 - (10초 사망 인원) → 비율로 게이지 분배(프로토타입용).
+          </div>
+
+          <div class="row" style="margin-top:12px; justify-content:flex-start;">
+            <button class="btn" type="button" id="btnStartEvent">▶️ 시작 내레이션 재생</button>
+          </div>
+
+          <div class="muted">
+            “시작 내레이션”은 프로토타입 실행/전체 리셋 시 자동 재생됩니다.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== Elements ======
+    const els = {
+      narration: document.getElementById('narration'),
+      narMain: document.getElementById('narMain'),
+      narSub: document.getElementById('narSub'),
+
+      // war gauge
+      gAtt: document.getElementById('gAtt'),
+      gDef: document.getElementById('gDef'),
+
+      // minimap gate dots
+      dotGateL: document.getElementById('dotGateL'),
+      dotGateR: document.getElementById('dotGateR'),
+      dotGateC: document.getElementById('dotGateC'),
+
+      // HUD stages
+      uiStageGate: document.getElementById('uiStageGate'),
+      uiStagePower: document.getElementById('uiStagePower'),
+      uiStageRelic: document.getElementById('uiStageRelic'),
+
+      // timer
+      timerText: document.getElementById('timerText'),
+
+      // checkboxes
+      gateL: document.getElementById('gateL'),
+      gateC: document.getElementById('gateC'),
+      gateR: document.getElementById('gateR'),
+      power50: document.getElementById('power50'),
+      power: document.getElementById('power'),
+      relic: document.getElementById('relic'),
+
+      lblPower50: document.getElementById('lblPower50'),
+      lblPower: document.getElementById('lblPower'),
+      lblRelic: document.getElementById('lblRelic'),
+
+      btnReset: document.getElementById('btnReset'),
+      btnStartEvent: document.getElementById('btnStartEvent'),
+
+      // inputs
+      defAlive: document.getElementById('defAlive'),
+      attAlive: document.getElementById('attAlive'),
+      defDead: document.getElementById('defDead'),
+      attDead: document.getElementById('attDead'),
+    };
+
+    // ====== State ======
+    const state = {
+      firstGateDestroyedNarrationUsed: false,
+    };
+
+    // ====== Narration ======
+    function playNarration(main, sub = '') {
+      els.narMain.textContent = main;
+      els.narSub.textContent = sub;
+
+      els.narration.classList.remove('show');
+      void els.narration.offsetWidth;
+      els.narration.classList.add('show');
+    }
+
+    // ====== Checkbox lock behavior ======
+    function lockCheckedBox(cb) {
+      cb.addEventListener('click', (e) => {
+        if (cb.dataset.locked === 'true') e.preventDefault();
+      });
+      cb.dataset.locked = 'true';
+    }
+
+    function setEnabled(cb, labelEl, enabled) {
+      cb.disabled = !enabled;
+      labelEl.classList.toggle('disabled', !enabled);
+    }
+
+    // ====== Dependencies ======
+    function anyGateDestroyed() {
+      return els.gateL.checked || els.gateC.checked || els.gateR.checked;
+    }
+
+    function refreshDependencies() {
+      const canPower50 = anyGateDestroyed();
+      if (!els.power50.checked) setEnabled(els.power50, els.lblPower50, canPower50);
+
+      const canPower = els.power50.checked;
+      if (!els.power.checked) setEnabled(els.power, els.lblPower, canPower);
+
+      const canRelic = els.power.checked;
+      if (!els.relic.checked) setEnabled(els.relic, els.lblRelic, canRelic);
+    }
+
+    // ====== Gate dots coloring ======
+    function setDot(dotEl, destroyed) {
+      dotEl.style.background = destroyed ? 'rgba(255,59,59,.95)' : 'rgba(0,255,145,.95)';
+    }
+
+    function refreshGateDots() {
+      // left dot = 좌측, right dot = 우측, bottom dot = 중앙(= gateC)
+      setDot(els.dotGateL, els.gateL.checked);
+      setDot(els.dotGateR, els.gateR.checked);
+      setDot(els.dotGateC, els.gateC.checked);
+    }
+
+    // ====== Power ring (minimap border) ======
+    function refreshPowerRing() {
+      const minimap = document.querySelector('.minimap');
+      minimap.style.borderColor = els.power.checked ? '#1A0000' : '#7293FF';
+    }
+
+    // ====== HUD stage brightness rule ======
+    // 완료 = 어둡게(completed), 미완료 = 밝게(기본)
+    function setStageCompleted(stageEl, completed) {
+      stageEl.classList.toggle('completed', completed);
+    }
+
+    function refreshStages() {
+      // 성문 진입: 성문이 하나라도 파괴되면 완료로 간주(프로토타입 규칙)
+      const gateDone = anyGateDestroyed();
+      setStageCompleted(els.uiStageGate, gateDone);
+
+      // 동력 장치 파괴: power 체크되면 완료
+      setStageCompleted(els.uiStagePower, els.power.checked);
+
+      // 성물 점령: relic 체크되면 완료
+      setStageCompleted(els.uiStageRelic, els.relic.checked);
+    }
+
+    // ====== Battle gauge ======
+    function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+    function num(el){ return Math.max(0, parseInt(el.value || '0', 10) || 0); }
+
+    function refreshGauge() {
+      const defAlive = num(els.defAlive);
+      const attAlive = num(els.attAlive);
+      const defDead = num(els.defDead);
+      const attDead = num(els.attDead);
+
+      const defPower = Math.max(0, defAlive - defDead);
+      const attPower = Math.max(0, attAlive - attDead);
+
+      const total = defPower + attPower;
+      const attPct = total === 0 ? 50 : (attPower / total) * 100;
+      const defPct = 100 - attPct;
+
+      els.gAtt.style.width = `${clamp(attPct, 0, 100)}%`;
+      els.gDef.style.width = `${clamp(defPct, 0, 100)}%`;
+    }
+
+    // ====== Event rules ======
+    function gateDestroyedEvent(which) {
+      const main = `${which} 성문 파괴`;
+
+      let sub = '';
+      if (!state.firstGateDestroyedNarrationUsed) {
+        sub =
+          `00의 마지막 일격 : 00길드가 버프를 획득합니다.\n` +
+          `동력 장치를 보호하던 보호막이 해제되었습니다.`;
+        state.firstGateDestroyedNarrationUsed = true;
+      }
+      playNarration(main, sub);
+    }
+
+    function power50Event() {
+      playNarration('동력 장치 50% 파괴', '수성측 수호병이 깨어납니다.');
+    }
+
+    function powerDestroyedEvent() {
+      playNarration('동력 장치 파괴',
+        `00의 마지막 일격 : 00길드가 버프를 획득합니다.\n` +
+        `내성을 보호하던 보호막이 해제되었습니다.`
+      );
+    }
+
+    function relicDestroyedEvent() {
+      playNarration('00길드 승리', '공성전이 종료되었습니다.');
+    }
+
+    // ====== Handling checkbox changes ======
+    function onGateCheck(cb, whichText) {
+      if (!cb.checked) return;
+      lockCheckedBox(cb);
+      gateDestroyedEvent(whichText);
+
+      refreshGateDots();
+      refreshDependencies();
+      refreshStages();
+    }
+
+    function onPower50Check() {
+      if (!els.power50.checked) return;
+      lockCheckedBox(els.power50);
+      power50Event();
+
+      refreshDependencies();
+      refreshStages();
+    }
+
+    function onPowerCheck() {
+      if (!els.power.checked) return;
+      lockCheckedBox(els.power);
+      powerDestroyedEvent();
+
+      refreshDependencies();
+      refreshStages();
+      refreshPowerRing(); // 링 색 반영
+    }
+
+    function onRelicCheck() {
+      if (!els.relic.checked) return;
+      lockCheckedBox(els.relic);
+      relicDestroyedEvent();
+
+      refreshDependencies();
+      refreshStages();
+    }
+
+    // ====== Reset ======
+    function resetAll() {
+      state.firstGateDestroyedNarrationUsed = false;
+
+      [els.gateL, els.gateC, els.gateR, els.power50, els.power, els.relic].forEach(cb => {
+        cb.dataset.locked = 'false';
+        cb.checked = false;
+      });
+
+      setEnabled(els.power50, els.lblPower50, false);
+      setEnabled(els.power, els.lblPower, false);
+      setEnabled(els.relic, els.lblRelic, false);
+
+      refreshGateDots();
+      refreshDependencies();
+      refreshStages();
+      refreshPowerRing(); // 링 색 원복
+
+      playNarration('공성전이 시작되었습니다.', '');
+    }
+
+    // ====== Wire events ======
+    els.gateL.addEventListener('change', () => onGateCheck(els.gateL, '좌측'));
+    els.gateC.addEventListener('change', () => onGateCheck(els.gateC, '중앙'));
+    els.gateR.addEventListener('change', () => onGateCheck(els.gateR, '우측'));
+
+    els.power50.addEventListener('change', onPower50Check);
+    els.power.addEventListener('change', onPowerCheck);
+    els.relic.addEventListener('change', onRelicCheck);
+
+    els.btnReset.addEventListener('click', resetAll);
+    els.btnStartEvent.addEventListener('click', () => playNarration('공성전이 시작되었습니다.', ''));
+
+    [els.defAlive, els.attAlive, els.defDead, els.attDead].forEach(input => {
+      input.addEventListener('input', refreshGauge);
+    });
+
+    // ====== Init ======
+    refreshGauge();
+    refreshGateDots();
+    refreshDependencies();
+    refreshStages();
+    refreshPowerRing(); // 초기 링 색 반영
+    playNarration('공성전이 시작되었습니다.', '');
+  </script>
+</body>
+</html>
