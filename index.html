@@ -58,19 +58,22 @@
       box-shadow: var(--shadow);
       background:#000;
     }
-    .bg{ position:absolute; inset:0; }
+    .bg{ position:absolute; inset:0; background:#000; }
     .bg img{
       width:100%; height:100%;
-      object-fit: cover;
+      /* ✅ 배경이 "잘리지 않게": contain */
+      object-fit: contain;
+      object-position: center;
       display:block;
       filter: saturate(.95) contrast(1.03);
-      transform: scale(1.02);
+      /* cover용으로 넣었던 scale 제거 */
+      transform: none;
     }
     .vignette{
       position:absolute; inset:0;
       background:
-        radial-gradient(1200px 700px at 20% 20%, rgba(0,0,0,.22), rgba(0,0,0,.52) 70%),
-        linear-gradient(to bottom, rgba(0,0,0,.25), rgba(0,0,0,.35));
+        radial-gradient(1200px 700px at 20% 20%, rgba(0,0,0,.15), rgba(0,0,0,.45) 70%),
+        linear-gradient(to bottom, rgba(0,0,0,.18), rgba(0,0,0,.30));
       pointer-events:none;
     }
 
@@ -98,7 +101,7 @@
       height: 240px;
       border-radius: 999px;
 
-      /* 동력 장치 가동 상태 링(기본 #7293FF, 파괴 시 #1A0000) */
+      /* 동력 장치 가동 상태 링(기본 #7293FF, 파괴 시 #A2A2A2) */
       border: 7px solid #7293FF;
 
       box-shadow: 0 12px 24px rgba(0,0,0,.40);
@@ -514,7 +517,8 @@
           </div>
 
           <div class="muted">
-            유효 전력 = 인원 - (10초 사망 인원) → 비율로 게이지 분배(프로토타입용).
+            ✅ 계산식: (최근 10초 사망 인원) ÷ (전체 인원) = 사망 비율<br/>
+            두 진영의 “사망 비율”을 비교해 더 밀리는 쪽(비율↑)이 게이지에서 상대적으로 작게 표시됩니다.
           </div>
 
           <div class="row" style="margin-top:12px; justify-content:flex-start;">
@@ -634,28 +638,25 @@
     // ====== Power ring (minimap border) ======
     function refreshPowerRing() {
       const minimap = document.querySelector('.minimap');
-      minimap.style.borderColor = els.power.checked ? '#1A0000' : '#7293FF';
+      minimap.style.borderColor = els.power.checked ? '#A2A2A2' : '#7293FF';
     }
 
     // ====== HUD stage brightness rule ======
-    // 완료 = 어둡게(completed), 미완료 = 밝게(기본)
     function setStageCompleted(stageEl, completed) {
       stageEl.classList.toggle('completed', completed);
     }
 
     function refreshStages() {
-      // 성문 진입: 성문이 하나라도 파괴되면 완료로 간주(프로토타입 규칙)
       const gateDone = anyGateDestroyed();
       setStageCompleted(els.uiStageGate, gateDone);
-
-      // 동력 장치 파괴: power 체크되면 완료
       setStageCompleted(els.uiStagePower, els.power.checked);
-
-      // 성물 점령: relic 체크되면 완료
       setStageCompleted(els.uiStageRelic, els.relic.checked);
     }
 
-    // ====== Battle gauge ======
+    // ====== Battle gauge (FIXED) ======
+    // 요구: (최근 10초 사망 인원) / (전체 인원) 비율로 계산
+    // - 인원 차이가 나더라도 "누가 더 밀리는가(사망비율↑)"를 비교 가능
+    // - 게이지는 "사망비율이 낮은 쪽(=상대적으로 강세)"이 더 크게 보이도록 표시
     function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
     function num(el){ return Math.max(0, parseInt(el.value || '0', 10) || 0); }
 
@@ -665,11 +666,15 @@
       const defDead = num(els.defDead);
       const attDead = num(els.attDead);
 
-      const defPower = Math.max(0, defAlive - defDead);
-      const attPower = Math.max(0, attAlive - attDead);
+      const defLoss = (defAlive === 0) ? 0 : clamp(defDead / defAlive, 0, 1);
+      const attLoss = (attAlive === 0) ? 0 : clamp(attDead / attAlive, 0, 1);
 
-      const total = defPower + attPower;
-      const attPct = total === 0 ? 50 : (attPower / total) * 100;
+      // "강세"를 보여주기 위해 loss의 역수(1-loss)를 사용
+      const defStrength = clamp(1 - defLoss, 0, 1);
+      const attStrength = clamp(1 - attLoss, 0, 1);
+
+      const total = defStrength + attStrength;
+      const attPct = (total === 0) ? 50 : (attStrength / total) * 100;
       const defPct = 100 - attPct;
 
       els.gAtt.style.width = `${clamp(attPct, 0, 100)}%`;
@@ -732,7 +737,7 @@
 
       refreshDependencies();
       refreshStages();
-      refreshPowerRing(); // 링 색 반영
+      refreshPowerRing();
     }
 
     function onRelicCheck() {
@@ -760,7 +765,7 @@
       refreshGateDots();
       refreshDependencies();
       refreshStages();
-      refreshPowerRing(); // 링 색 원복
+      refreshPowerRing();
 
       playNarration('공성전이 시작되었습니다.', '');
     }
@@ -786,7 +791,7 @@
     refreshGateDots();
     refreshDependencies();
     refreshStages();
-    refreshPowerRing(); // 초기 링 색 반영
+    refreshPowerRing();
     playNarration('공성전이 시작되었습니다.', '');
   </script>
 </body>
